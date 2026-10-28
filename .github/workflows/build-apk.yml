@@ -30,7 +30,6 @@ jobs:
 
       - name: Install Android SDK & Build APK
         run: |
-          # Install Android SDK Command-line tools manually to avoid errors
           mkdir -p $HOME/android-sdk/cmdline-tools
           wget -q https://dl.google.com/android/repository/commandlinetools-linux-11076708_latest.zip -O cmdline-tools.zip
           unzip -q cmdline-tools.zip -d $HOME/android-sdk/cmdline-tools
@@ -39,19 +38,25 @@ jobs:
           export ANDROID_HOME=$HOME/android-sdk
           export PATH=$PATH:$ANDROID_HOME/cmdline-tools/latest/bin:$ANDROID_HOME/platform-tools
 
-          # Accept all SDK licenses and install required platforms
           mkdir -p $ANDROID_HOME/licenses
           echo "8933bad161af4178b1185d1a37fbf41ea5269c55" > $ANDROID_HOME/licenses/android-sdk-license
           echo "d56f5187479451eabf01fb78af6dfcb131a648b0" >> $ANDROID_HOME/licenses/android-sdk-license
           echo "84831b9409646a918e30573bab4c9c91346d8abd" > $ANDROID_HOME/licenses/android-sdk-preview-license
 
-          sdkmanager --sdk_root=$ANDROID_HOME "platform-tools" "platforms;android-34" "build-tools;34.0.0"
+          yes | sdkmanager --sdk_root=$ANDROID_HOME "platform-tools" "platforms;android-34" "build-tools;34.0.0" || true
 
+          # Find where build.gradle or settings.gradle is located
+          PROJECT_DIR=$(find . -name "settings.gradle" -exec dirname {} \; | head -n 1)
+          echo "Project directory: $PROJECT_DIR"
+          cd "$PROJECT_DIR"
+
+          # Build using gradle with stacktrace to show exact error if it fails
+          export ANDROID_HOME=$ANDROID_HOME
           if [ -f "./gradlew" ]; then
             chmod +x gradlew
-            ANDROID_HOME=$ANDROID_HOME ./gradlew assembleDebug
+            ./gradlew assembleDebug --stacktrace
           else
-            ANDROID_HOME=$ANDROID_HOME gradle assembleDebug
+            gradle assembleDebug --stacktrace
           fi
 
       - name: Upload APK
