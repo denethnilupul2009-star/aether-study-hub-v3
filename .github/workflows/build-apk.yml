@@ -25,27 +25,38 @@ jobs:
           distribution: 'temurin'
           java-version: '17'
 
-      - name: Set up Android SDK
-        uses: android-actions/setup-android@v3
-
-      - name: Accept Licenses & Build APK
+      - name: Install SDK & Build APK Without Actions Error
         run: |
-          # Automatically accept all Android SDK licenses
-          yes | sdkmanager --licenses || true
+          # 1. Manually download and set up Android Command-line Tools (No setup-android plugin issues)
+          mkdir -p $HOME/android-sdk/cmdline-tools
+          wget -q https://dl.google.com/android/repository/commandlinetools-linux-11076708_latest.zip -O cmdline-tools.zip
+          unzip -q cmdline-tools.zip -d $HOME/android-sdk/cmdline-tools
+          mv $HOME/android-sdk/cmdline-tools/cmdline-tools $HOME/android-sdk/cmdline-tools/latest
+          
+          export ANDROID_HOME=$HOME/android-sdk
+          export PATH=$PATH:$ANDROID_HOME/cmdline-tools/latest/bin:$ANDROID_HOME/platform-tools
 
-          # Find project directory where settings.gradle is located
+          # 2. Accept all licenses automatically
+          mkdir -p $ANDROID_HOME/licenses
+          echo "8933bad161af4178b1185d1a37fbf41ea5269c55" > $ANDROID_HOME/licenses/android-sdk-license
+          echo "d56f5187479451eabf01fb78af6dfcb131a648b0" >> $ANDROID_HOME/licenses/android-sdk-license
+          echo "84831b9409646a918e30573bab4c9c91346d8abd" > $ANDROID_HOME/licenses/android-sdk-preview-license
+
+          yes | sdkmanager --sdk_root=$ANDROID_HOME "platform-tools" "platforms;android-33" "build-tools;33.0.2" || true
+
+          # 3. Find project directory and cleanup old wrappers
           PROJECT_DIR=$(find . -name "settings.gradle" -exec dirname {} \; | head -n 1)
           echo "Project directory: $PROJECT_DIR"
           cd "$PROJECT_DIR"
 
-          # Remove old wrapper if any and build using system gradle with Java 17
           rm -rf gradlew gradlew.bat gradle/
 
-          # Download Gradle 8.0 to ensure 100% compatibility
+          # 4. Download and run with Stable Gradle 8.0
           wget -q https://services.gradle.org/distributions/gradle-8.0-bin.zip -O gradle.zip
           unzip -q gradle.zip -d $HOME
           export PATH=$HOME/gradle-8.0/bin:$PATH
 
+          export ANDROID_HOME=$ANDROID_HOME
           gradle assembleDebug --stacktrace
 
       - name: Upload APK
