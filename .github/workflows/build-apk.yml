@@ -44,19 +44,22 @@ jobs:
 
           yes | sdkmanager --sdk_root=$ANDROID_HOME "platform-tools" "platforms;android-33" "build-tools;33.0.2" || true
 
-          # 3. Download and setup stable Gradle 8.0 manually to avoid Gradle 9 errors
+          # 3. Download and setup stable Gradle 8.0 explicitly
           wget -q https://services.gradle.org/distributions/gradle-8.0-bin.zip -O gradle.zip
           unzip -q gradle.zip -d $HOME
           export PATH=$HOME/gradle-8.0/bin:$PATH
 
-          # 4. Find project directory and build
+          # 4. Find project directory, REMOVE wrapper to force system gradle use
           PROJECT_DIR=$(find . -name "settings.gradle" -exec dirname {} \; | head -n 1)
           echo "Project directory: $PROJECT_DIR"
           cd "$PROJECT_DIR"
 
+          # Delete gradlew files so it never uses wrapper
+          rm -rf gradlew gradlew.bat gradle/
+
           export ANDROID_HOME=$ANDROID_HOME
           
-          # Run gradle build with Java 17 and Gradle 8.0
+          # Run build using pure Gradle 8.0
           gradle assembleDebug --stacktrace
 
       - name: Upload APK
